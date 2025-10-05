@@ -1,16 +1,38 @@
 # edge_server/database/schemas.py
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field, validator
 from typing import List, Optional
 from datetime import datetime
 
 # User
-class UserCreate(BaseModel):
+from pydantic import BaseModel, EmailStr, Field, validator
+
+# Gemeinsames User-Model
+class UserBase(BaseModel):
+    email: EmailStr = Field(..., description="Gültige E-Mail-Adresse des Benutzers")
+    username: str = Field(..., min_length=3, max_length=30, description="Eindeutiger Benutzername")
+
+# Input für Signup
+class UserCreate(UserBase):
+    password: str = Field(..., min_length=8, description="Passwort mit mindestens 8 Zeichen")
+
+    # Zusätzliche einfache Passwortprüfung
+    @validator("password")
+    def validate_password_strength(cls, v):
+        if len(v) < 8:
+            raise ValueError("Das Passwort muss mindestens 8 Zeichen lang sein.")
+        if v.isdigit() or v.isalpha():
+            raise ValueError("Das Passwort sollte Zahlen und Buchstaben enthalten.")
+        return v
+
+# Login
+class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-class UserOut(BaseModel):
+# Output (Response)
+class UserOut(UserBase):
     id: int
-    email: EmailStr
+
     class Config:
         orm_mode = True
 

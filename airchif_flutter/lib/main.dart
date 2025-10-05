@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'routing/routes.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 
-void main() => runApp(const AirChifApp());
+void main(){
+  setUrlStrategy(PathUrlStrategy());
+  runApp(const AirChifApp());
+}
 
 class AirChifApp extends StatelessWidget {
   const AirChifApp({super.key});

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class SignUpScreen extends StatelessWidget {
   const SignUpScreen({super.key});
-  static const routePath = '/signup';
+  static const routePath = '/sign-up';
 
   @override
   Widget build(BuildContext context) {

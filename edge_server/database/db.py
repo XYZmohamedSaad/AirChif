@@ -1,13 +1,19 @@
-# edge_server/database/db.py
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-SQLALCHEMY_DATABASE_URL = "sqlite:///./airchif.db"
+# PostgreSQL Connection (Windows lokal)
+DATABASE_URL = "postgresql+psycopg2://postgres:airchif@localhost:5432/airchif"
 
-engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+# Engine erstellen
+engine = create_engine(DATABASE_URL, echo=True)  # echo=True zeigt SQL-Logs
+
+# Session
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Base-Klasse für Models
 Base = declarative_base()
 
+# Dependency für FastAPI
 def get_db():
     db = SessionLocal()
     try:

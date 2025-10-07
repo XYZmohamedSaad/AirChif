@@ -1,4 +1,7 @@
-fastapi==0.95.2
-uvicorn[standard]==0.22.0
-pydantic<2.0.0,>=1.10.2
-SQLAlchemy==2.0.22
+fastapi
+uvicorn
+sqlalchemy
+psycopg2-binary
+pydantic[email]
+passlib[bcrypt]
+python-jose[cryptography]

@@ -1,9 +1,26 @@
-version: "3.9"
 services:
-  edge-server:
-    build: .
+  db:
+    image: postgres:16
+    container_name: airchif-db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: airchif
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data   # <- lokale Speicherung im Projektordner
+
+  backend:
+    build:
+      context: .
+      dockerfile: edge_server/Dockerfile
+    container_name: airchif-backend
+    restart: always
     ports:
       - "8000:8000"
-    volumes:
-      - .:/app
-    command: uvicorn edge_server.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/airchif

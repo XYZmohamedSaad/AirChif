@@ -1,1 +1,1 @@
-docker compose up --build
+AirChif Nr. 1

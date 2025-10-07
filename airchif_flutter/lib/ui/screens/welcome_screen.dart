@@ -9,12 +9,18 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Farbdefinitionen
-    const accentYellow = Color(0xFFF2C23A); // Gelb für Text & Akzente
-    const darkGold = Color(0xFFC58B07); // dunkles Gold für Sign in
-    const lightBeige = Color(0xFFF9EFCF); // Hintergrund Sign up
-    const boxYellow = Color(0xFFF4DA7A); // Boxfarbe
-    const pageBg = Colors.white; // Seitenhintergrund
+    // Farben
+    const accentYellow = Color(0xFFF2C23A);
+    const darkGold     = Color(0xFFC58B07);
+    const lightBeige   = Color(0xFFF9EFCF);
+    const boxYellow    = Color(0xFFF4DA7A);
+    const pageBg       = Colors.white;
+
+    // Größen (angepasst für größere Drohne)
+    const double heroHeight     = 280;  // etwas höherer Bereich
+    const double padSize        = 210;  // H bleibt gleich
+    const double droneMaxWidth  = 460;  // Drohne größer (bedeckt H)
+    const double landingOpacity = 0.05; // fast unsichtbar
 
     return Scaffold(
       backgroundColor: pageBg,
@@ -27,10 +33,11 @@ class WelcomeScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ===== Bildbox =====
+                  // ===== HERO BOX =====
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(18),
+                    height: heroHeight,
+                    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 18),
                     decoration: BoxDecoration(
                       color: boxYellow,
                       borderRadius: BorderRadius.circular(22),
@@ -43,20 +50,38 @@ class WelcomeScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: FittedBox(
-                          fit: BoxFit.contain,
-                          child: Image.asset('assets/hero.jpeg'),
-                        ),
+                    child: Center(
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // Landing Pad (leicht durchsichtig)
+                          Opacity(
+                            opacity: landingOpacity,
+                            child: SizedBox(
+                              width: padSize,
+                              height: padSize,
+                              child: Image.asset(
+                                'assets/landingH.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                          // Drohne – größer, liegt oben
+                          ConstrainedBox(
+                            constraints: BoxConstraints(maxWidth: droneMaxWidth),
+                            child: Image.asset(
+                              'assets/drone_image.png',
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
+
                   const SizedBox(height: 22),
 
-                  // ===== Headline =====
+                  // ===== HEADLINE =====
                   RichText(
                     text: const TextSpan(
                       style: TextStyle(
@@ -65,34 +90,22 @@ class WelcomeScreen extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                       ),
                       children: [
-                        TextSpan(
-                          text: 'Save the ',
-                          style: TextStyle(color: Colors.black),
-                        ),
-                        TextSpan(
-                          text: 'World and its Future\n',
-                          style: TextStyle(color: accentYellow, fontWeight: FontWeight.w900),
-                        ),
-                        TextSpan(
-                          text: 'From a ',
-                          style: TextStyle(color: Colors.black),
-                        ),
-                        TextSpan(
-                          text: 'Birds Perspective',
-                          style: TextStyle(color: accentYellow, fontWeight: FontWeight.w900),
-                        ),
+                        TextSpan(text: 'Save the ', style: TextStyle(color: Colors.black)),
+                        TextSpan(text: 'World and its Future\n', style: TextStyle(color: accentYellow)),
+                        TextSpan(text: 'From a ', style: TextStyle(color: Colors.black)),
+                        TextSpan(text: 'Birds Perspective', style: TextStyle(color: accentYellow)),
                       ],
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  // ===== AIRCHIF (kursiv, fett, gelb) =====
+                  // ===== AIRCHIF =====
                   const Text(
                     'AIRCHIF',
                     style: TextStyle(
                       color: accentYellow,
-                      fontStyle: FontStyle.italic, // kursiv
-                      fontWeight: FontWeight.w900, // fett
+                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w900,
                       letterSpacing: 1.5,
                       fontSize: 20,
                     ),
@@ -116,16 +129,13 @@ class WelcomeScreen extends StatelessWidget {
                   const SizedBox(height: 22),
 
                   // ===== Divider =====
-                  Center(
-                    child: Container(height: 1.5, width: 120, color: Colors.black),
-                  ),
+                  Center(child: Container(height: 1.5, width: 120, color: Colors.black)),
                   const SizedBox(height: 22),
 
                   // ===== Buttons =====
                   Center(
                     child: Column(
                       children: [
-                        // Sign in (weiß)
                         SizedBox(
                           width: 230,
                           height: 48,
@@ -137,14 +147,12 @@ class WelcomeScreen extends StatelessWidget {
                               side: const BorderSide(color: Colors.black, width: 1.2),
                               elevation: 0,
                               textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w500),
-                              foregroundColor: Colors.white, // Text weiß
+                              foregroundColor: Colors.white,
                             ),
                             child: const Text('Sign in'),
                           ),
                         ),
                         const SizedBox(height: 14),
-
-                        // Sign up (beige)
                         SizedBox(
                           width: 230,
                           height: 48,

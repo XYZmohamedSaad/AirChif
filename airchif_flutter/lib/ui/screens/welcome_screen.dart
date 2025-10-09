@@ -1,50 +1,23 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'sign_in_screen.dart';
 import 'sign_up_screen.dart';
 
-class WelcomeScreen extends StatefulWidget {
+class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
   static const routePath = '/';
-
-  @override
-  State<WelcomeScreen> createState() => _WelcomeScreenState();
-}
-
-class _WelcomeScreenState extends State<WelcomeScreen>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _hover;
-
-  @override
-  void initState() {
-    super.initState();
-    _hover = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _hover.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
     // Farben
     const accentYellow = Color(0xFFF2C23A);
-    const darkGold = Color(0xFFC58B07);
-    const lightBeige = Color(0xFFF9EFCF);
-    const boxYellow = Color(0xFFF4DA7A);
-    const pageBg = Colors.white;
+    const darkGold     = Color(0xFFC58B07);
+    const lightBeige   = Color(0xFFF9EFCF);
+    const boxYellow    = Color(0xFFF4DA7A);
+    const pageBg       = Colors.white;
 
-    // Größen (fein abgestimmt)
-    const double heroHeight = 320;     // Höhe der gelben Box
-    const double padSize = 240;        // Größe des H
-    const double droneMaxWidth = 500;  // Drohne größer, aber noch „inside“
-    const Color hTint = Color(0xFF3F3F3F); // H etwas heller als tiefschwarz
+    // Größen
+    const double heroHeight = 320; // Box-Höhe
 
     return Scaffold(
       backgroundColor: pageBg,
@@ -73,76 +46,39 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                         ),
                       ],
                     ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // H (Landing Pad) – etwas heller als Schwarz
-                        ColorFiltered(
-                          colorFilter: const ColorFilter.mode(hTint, BlendMode.srcIn),
-                          child: SizedBox(
-                            width: padSize,
-                            height: padSize,
-                            child: Image.asset('assets/landingH.png', fit: BoxFit.contain),
-                          ),
-                        ),
-
-                        // Hover-Shadow (Ellipse) unter der Drohne
-                        AnimatedBuilder(
-                          animation: _hover,
-                          builder: (context, _) {
-                            // t in [0,1] -> smooth curve
-                            final t = (1 - math.cos(_hover.value * math.pi)) / 2; // ease in-out
-                            final shadowScale = 1.0 - (t * 0.12); // kleiner wenn Drohne höher
-                            final shadowOpacity = 0.28 - (t * 0.12);
-
-                            return Transform.scale(
-                              scale: shadowScale,
-                              child: Opacity(
-                                opacity: shadowOpacity.clamp(0.0, 1.0),
-                                child: Container(
-                                  width: 180,
-                                  height: 40,
-                                  decoration: BoxDecoration(
-                                    color: Colors.black,
-                                    borderRadius: BorderRadius.circular(40),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        blurRadius: 30,
-                                        spreadRadius: 2,
-                                        color: Colors.black.withOpacity(0.35),
-                                      ),
-                                    ],
-                                  ),
-                                ),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Insets, damit die Drohne "fast" die Ecken berührt, aber nicht raus ragt
+                        const edgeInset = 1.0;
+                        return Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            // Reines H-Icon ohne Muster/Striche
+                            CustomPaint(
+                              size: Size(constraints.maxWidth, constraints.maxHeight),
+                              painter: _LandingPadPainter(
+                                color: const Color(0xFF4A4A4A), // dunkles Grau (heller als Schwarz)
+                                ringStroke: 9,
+                                hBarWidth: 13,
+                                hBarHeightFactor: 0.30, // Höhe der H-Schenkel relativ zur Box
+                                ringScale: 0.66, // Ring-Durchmesser relativ zur Box
                               ),
-                            );
-                          },
-                        ),
+                            ),
 
-                        // Drohne – exakt zentriert, größer, sanft schwebend
-                        AnimatedBuilder(
-                          animation: _hover,
-                          builder: (context, _) {
-                            final t = (1 - math.cos(_hover.value * math.pi)) / 2; // smooth 0..1
-                            final dy = lerpDouble(-6, 6, t)!;      // vertikales Schweben
-                            final scale = lerpDouble(1.02, 0.98, t)!; // minimale Skalierung
-
-                            return Transform.translate(
-                              offset: Offset(0, dy),
-                              child: Transform.scale(
-                                scale: scale,
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(maxWidth: droneMaxWidth),
-                                  child: Image.asset(
-                                    'assets/drone_image.png',
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
+                            // Drohne – maximal groß innerhalb der Box
+                            Positioned.fill(
+                              left: edgeInset,
+                              right: edgeInset,
+                              top: edgeInset,
+                              bottom: edgeInset,
+                              child: FittedBox(
+                                fit: BoxFit.contain,
+                                child: Image.asset('assets/drone_image.png'),
                               ),
-                            );
-                          },
-                        ),
-                      ],
+                            ),
+                          ],
+                        );
+                      },
                     ),
                   ),
 
@@ -151,20 +87,25 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                   // ===== HEADLINE =====
                   RichText(
                     text: const TextSpan(
-                      style: TextStyle(fontSize: 26, height: 1.2, fontWeight: FontWeight.w900),
+                      style: TextStyle(
+                        fontSize: 26,
+                        height: 1.2,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.black,
+                      ),
                       children: [
-                        TextSpan(text: 'Save the ', style: TextStyle(color: Colors.black)),
+                        TextSpan(text: 'Save the '),
                         TextSpan(text: 'World and its Future\n', style: TextStyle(color: accentYellow)),
-                        TextSpan(text: 'From a ', style: TextStyle(color: Colors.black)),
+                        TextSpan(text: 'From a '),
                         TextSpan(text: 'Birds Perspective', style: TextStyle(color: accentYellow)),
                       ],
                     ),
                   ),
                   const SizedBox(height: 12),
 
-                  // ===== AIRCHIF =====
+                  // ===== AirChif =====
                   const Text(
-                    'AIRCHIF',
+                    'AirChif',
                     style: TextStyle(
                       color: accentYellow,
                       fontStyle: FontStyle.italic,
@@ -181,7 +122,12 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     child: Text(
                       'With this app, you can connect to a DJI\n'
                           'Tello and use its features to combat environmental pollution.',
-                      style: TextStyle(color: Colors.black, height: 1.35, fontSize: 15.5, letterSpacing: .25),
+                      style: TextStyle(
+                        color: Colors.black,
+                        height: 1.35,
+                        fontSize: 15.5,
+                        letterSpacing: .25,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 22),
@@ -236,5 +182,63 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 }
 
-// kleine Hilfsfunktion
-double? lerpDouble(num a, num b, double t) => a + (b - a) * t;
+/// Zeichnet das Landing-Pad (Ring + H) ohne Muster/Striche.
+class _LandingPadPainter extends CustomPainter {
+  _LandingPadPainter({
+    required this.color,
+    required this.ringStroke,
+    required this.hBarWidth,
+    required this.hBarHeightFactor,
+    required this.ringScale,
+  });
+
+  final Color color;
+  final double ringStroke;
+  final double hBarWidth;
+  final double hBarHeightFactor; // 0..1 der Boxhöhe
+  final double ringScale; // 0..1: wie groß der Ring relativ zur Box ist
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = (size.shortestSide * ringScale) / 2;
+
+    // Ring
+    final ring = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = ringStroke
+      ..isAntiAlias = true;
+    canvas.drawCircle(center, radius, ring);
+
+    // H-Schenkel
+    final hHeight = size.height * hBarHeightFactor;
+    final hTop = center.dy - hHeight / 2;
+    final hBottom = center.dy + hHeight / 2;
+
+    final barPaint = Paint()..color = color..isAntiAlias = true;
+
+    final leftBar = Rect.fromCenter(
+      center: Offset(center.dx - radius * 0.28, center.dy),
+      width: hBarWidth,
+      height: hHeight,
+    );
+    final rightBar = Rect.fromCenter(
+      center: Offset(center.dx + radius * 0.28, center.dy),
+      width: hBarWidth,
+      height: hHeight,
+    );
+
+    canvas.drawRRect(RRect.fromRectAndRadius(leftBar, const Radius.circular(6)), barPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(rightBar, const Radius.circular(6)), barPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant _LandingPadPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.ringStroke != ringStroke ||
+        oldDelegate.hBarWidth != hBarWidth ||
+        oldDelegate.hBarHeightFactor != hBarHeightFactor ||
+        oldDelegate.ringScale != ringScale;
+  }
+}

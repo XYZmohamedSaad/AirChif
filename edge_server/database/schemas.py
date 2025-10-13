@@ -1,5 +1,6 @@
 # edge_server/database/schemas.py
 from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 
@@ -35,6 +36,15 @@ class UserOut(UserBase):
 
     class Config:
         orm_mode = True
+
+#Token
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+class TokenRefresh(BaseModel):
+    refresh_token: str
 
 # Waypoint
 class WaypointBase(BaseModel):

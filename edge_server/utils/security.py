@@ -5,15 +5,23 @@ from edge_server.config import settings
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# --- Passwort Hash ---
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
 def get_password_hash(password):
     return pwd_context.hash(password)
 
+# --- JWT ---
 def create_access_token(data: dict, expires_delta: int = None):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=expires_delta or settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
+
+def create_refresh_token(data: dict, expires_delta: int = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(days=expires_delta or settings.REFRESH_TOKEN_EXPIRE_DAYS)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
 

@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 class AuthService {
   final _storage = const FlutterSecureStorage();
-  final _baseUrl = 'http://127.0.0.1:8000/api/v1/auth';
+  final _baseUrl = 'https://60549a19f920.ngrok-free.app/api/v1/auth';
 
   Future<bool> signUp({required String email, required String username, required String password}) async {
     final res = await http.post(

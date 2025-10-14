@@ -1,4 +1,3 @@
-build/web/assets/canvaskit/
-build/web/assets/icons/
-*.map
-*.log
+# Ignoriere alles außer build/web
+*
+!build/web/**

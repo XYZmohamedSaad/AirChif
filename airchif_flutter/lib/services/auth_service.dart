@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 class AuthService {
   final _storage = const FlutterSecureStorage();
-  final _baseUrl = 'https://60549a19f920.ngrok-free.app/api/v1/auth';
+  final _baseUrl = 'https://airchif.onrender.com/api/v1/auth';
 
   Future<bool> signUp({required String email, required String username, required String password}) async {
     final res = await http.post(
@@ -12,7 +12,7 @@ class AuthService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'email': email, 'username': username, 'password': password}),
     );
-    return res.statusCode == 200;
+    return res.statusCode == 200 || res.statusCode == 201;
   }
 
   Future<bool> login({required String email, required String password}) async {

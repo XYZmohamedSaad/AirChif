@@ -1,6 +1,5 @@
 name: Flutter Web Deploy
 
-# Trigger bei jedem Push auf main
 on:
   push:
     branches:
@@ -9,34 +8,27 @@ on:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
-      # 1️⃣ Repository auschecken
-      - name: Checkout Repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
-      # 2️⃣ Flutter installieren
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: 'stable'
 
-      # 3️⃣ Abhängigkeiten installieren
       - name: Install dependencies
         run: flutter pub get
         working-directory: ./airchif_flutter
 
-      # 4️⃣ Flutter Web Build
       - name: Build Flutter Web
         run: flutter build web
         working-directory: ./airchif_flutter
 
-      # 5️⃣ Deploy zu Vercel
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v20
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}   # Pflicht
-          zeit-token: ${{ secrets.VERCEL_TOKEN }}     # Pflicht
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          zeit-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'

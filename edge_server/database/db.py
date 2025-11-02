@@ -1,12 +1,17 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+from dotenv import load_dotenv
 
-# Hole DATABASE_URL aus den Render-Environment-Variablen oder nutze localhost als Fallback
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+psycopg2://postgres:airchif@localhost:5432/airchif"
-)
+# .env laden (funktioniert lokal, Vercel ignoriert es)
+load_dotenv()
+
+# Hole DATABASE_URL aus den Environment-Variablen
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# Wenn keine gesetzt ist → nutze lokale Standard-DB
+if not DATABASE_URL:
+    DATABASE_URL = "postgresql+psycopg2://postgres:airchif@localhost:5432/airchif"
 
 # Engine erstellen
 engine = create_engine(DATABASE_URL, echo=True)

@@ -4,7 +4,7 @@ import 'package:http/http.dart' as http;
 
 class AuthService {
   final _storage = const FlutterSecureStorage();
-  final _baseUrl = 'https://airchif.onrender.com/api/v1/auth';
+  final _baseUrl = 'https://airchif-backend.vercel.app/api/v1/auth';
 
   Future<bool> signUp({required String email, required String username, required String password}) async {
     final res = await http.post(

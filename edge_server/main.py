@@ -21,7 +21,8 @@ origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://airchif.netlify.app",
-    "https://air-chif-five.vercel.app"
+    "https://air-chif-five.vercel.app",
+    "https://airchif-backend.vercel.app" #damit es sich ggf selber aufruft
 ]
 
 app.add_middleware(

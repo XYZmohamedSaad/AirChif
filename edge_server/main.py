@@ -22,12 +22,13 @@ origins = [
     "http://127.0.0.1:5173",
     "https://airchif.netlify.app",
     "https://air-chif-five.vercel.app",
-    "https://airchif-backend.vercel.app" #damit es sich ggf selber aufruft
+    "https://airchif-backend.vercel.app", #damit es sich ggf selber aufruft
+    "https://airchif-backend.onrender.com"
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

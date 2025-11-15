@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
+import 'manual_steering.dart'; // <--- importiert die Datei im gleichen Ordner
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -20,7 +21,24 @@ class HomeScreen extends StatelessWidget {
           )
         ],
       ),
-      body: const Center(child: Text('Willkommen auf der Home-Seite!')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('Willkommen auf der Home-Seite!'),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  ManualSteering.routePath, // <--- verwendet die statische routePath
+                );
+              },
+              child: const Text("Manual Steering öffnen"),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

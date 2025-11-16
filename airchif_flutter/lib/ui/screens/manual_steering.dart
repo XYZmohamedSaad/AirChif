@@ -2,16 +2,28 @@
 // LANDSCAPE version – ready-to-use
 // - Video stream background
 // - Joysticks overlay
-// - Top-right control icons: Emergency, Video, Land, Takeoff
+// - Scrollable layout to prevent overflow
 // - Drone connect / RC logic unchanged
+// - Telemetry row removed
+// - Top-left icons navigate pages
+// - Top-right icons: Emergency, Video On/Off, Land, Takeoff
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 
+import 'package:airchif_flutter/ui/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../routing/routes.dart';
+import 'automatic_steering.dart';
+import 'drone_settings.dart';
+import 'home_screen.dart';
+import 'manual_steering.dart';
 
 const String TELLO_IP = '192.168.10.1';
 const int TELLO_CMD_PORT = 8889;
@@ -32,8 +44,8 @@ class ManualSteering extends StatefulWidget {
 
 class _ManualSteeringState extends State<ManualSteering> with TickerProviderStateMixin {
   bool connected = false;
-  bool videoOn = true;
   String statusText = 'Not connected to any drone';
+  bool videoOn = true;
 
   RawDatagramSocket? _cmdSocket;
   RawDatagramSocket? _stateSocket;
@@ -77,7 +89,7 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
   }
 
   // -----------------------------
-  // CONNECT / VIDEO STREAM
+  // CONNECT
   // -----------------------------
   Future<void> connect() async {
     try {
@@ -96,14 +108,14 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
       _sendCmd('command');
       await Future.delayed(const Duration(milliseconds: 500));
       _sendCmd('streamon');
-      await Future.delayed(const Duration(seconds: 1)); // Warten bis Stream startet
+      await Future.delayed(const Duration(milliseconds: 500));
 
       _videoController = VlcPlayerController.network(
         'udp://@:$VLC_UDP_PORT',
         hwAcc: HwAcc.full,
         autoPlay: true,
         options: VlcPlayerOptions(
-          advanced: VlcAdvancedOptions(['--network-caching=300']),
+          advanced: VlcAdvancedOptions(['--network-caching=150']),
           rtp: VlcRtpOptions(['--rtp-client-port=$VLC_UDP_PORT']),
         ),
       );
@@ -138,17 +150,6 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
   void stopRc() {
     roll = pitch = throttle = yaw = 0;
     _sendCmd('rc 0 0 0 0');
-  }
-
-  void _toggleVideo() {
-    setState(() => videoOn = !videoOn);
-    if (_videoController != null) {
-      if (videoOn) {
-        _videoController!.play();
-      } else {
-        _videoController!.stop();
-      }
-    }
   }
 
   void _updateFromJoysticks() {
@@ -186,14 +187,13 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(height: 68, child: _buildTopBar()),
+                      SizedBox(height: 68, child: _buildTopBar(context)),
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           child: _buildVideoAreaLandscape(),
                         ),
                       ),
-                      const SizedBox(height: 120),
                     ],
                   ),
                 ),
@@ -234,27 +234,10 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
                 },
               ),
             ),
-            // Connection badge
             Positioned(
               left: 16,
               top: 18,
               child: FadeTransition(opacity: _fadeController, child: _connectionBadge()),
-            ),
-            // Top-right control icons
-            Positioned(
-              right: 16,
-              top: 18,
-              child: Row(
-                children: [
-                  _smallIconButton(Icons.warning, Colors.red, connected ? emergency : null),
-                  const SizedBox(width: 8),
-                  _smallIconButton(videoOn ? Icons.videocam : Icons.videocam_off, Colors.yellow[800]!, _toggleVideo),
-                  const SizedBox(width: 8),
-                  _smallIconButton(Icons.flight_land, Colors.red, connected ? land : null),
-                  const SizedBox(width: 8),
-                  _smallIconButton(Icons.flight_takeoff, Colors.green, connected ? takeoff : null),
-                ],
-              ),
             ),
           ],
         ),
@@ -265,20 +248,43 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
   // -----------------------------
   // WIDGETS
   // -----------------------------
-  Widget _buildTopBar() {
+  Widget _buildTopBar(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
+          // Left-side navigation
           Row(
             children: [
-              _iconCircle(Icons.settings, 40),
+              _iconCircle(Icons.settings, 40, () => context.go(DroneSettingsScreen.routePath)),
               const SizedBox(width: 10),
-              _iconCircle(Icons.home, 40),
+              _iconCircle(Icons.home, 40, () => context.go(HomeScreen.routePath)),
               const SizedBox(width: 10),
-              _iconCircle(Icons.pie_chart, 40),
+              _iconCircle(Icons.pie_chart, 40, () => context.go(AutomaticSteeringScreen.routePath)),
               const SizedBox(width: 10),
-              _iconCircle(Icons.person, 40),
+              _iconCircle(Icons.person, 40, () => context.go(ProfileScreen.routePath)),
+            ],
+          ),
+          const Spacer(),
+          // Right-side Tello controls
+          Row(
+            children: [
+              _smallIconButton(Icons.warning, Colors.red, emergency),
+              const SizedBox(width: 8),
+              _smallIconButton(Icons.videocam, Colors.yellow[700]!, () {
+                setState(() => videoOn = !videoOn);
+                if (videoOn) {
+                  _sendCmd('streamon');
+                  _videoController?.play();
+                } else {
+                  _sendCmd('streamoff');
+                  _videoController?.pause();
+                }
+              }),
+              const SizedBox(width: 8),
+              _smallIconButton(Icons.flight_land, Colors.green, land),
+              const SizedBox(width: 8),
+              _smallIconButton(Icons.flight_takeoff, Colors.green, takeoff),
             ],
           ),
         ],
@@ -286,12 +292,15 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
     );
   }
 
-  Widget _iconCircle(IconData icon, double size, {Color? bgColor}) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(color: bgColor ?? Colors.black12, shape: BoxShape.circle),
-      child: Icon(icon, size: size * 0.46),
+  Widget _iconCircle(IconData icon, double size, VoidCallback onTap, {Color? bgColor}) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(color: bgColor ?? Colors.black12, shape: BoxShape.circle),
+        child: Icon(icon, size: size * 0.46),
+      ),
     );
   }
 
@@ -307,7 +316,7 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
         child: Stack(
           fit: StackFit.expand,
           children: [
-            if (_videoController != null && videoOn)
+            if (_videoController != null)
               VlcPlayer(
                 controller: _videoController!,
                 aspectRatio: 16 / 9,

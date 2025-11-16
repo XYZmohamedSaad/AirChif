@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../services/auth_service.dart';
-import 'manual_steering.dart'; // <--- importiert die Datei im gleichen Ordner
+import 'manual_steering.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -16,7 +17,7 @@ class HomeScreen extends StatelessWidget {
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await AuthService().logout();
-              Navigator.of(context).pushNamed('/sign-in');
+              context.go('/sign-in'); // <--- FIX
             },
           )
         ],
@@ -29,10 +30,7 @@ class HomeScreen extends StatelessWidget {
             const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
-                Navigator.pushNamed(
-                  context,
-                  ManualSteering.routePath, // <--- verwendet die statische routePath
-                );
+                context.push(ManualSteering.routePath); // <--- FIX
               },
               child: const Text("Manual Steering öffnen"),
             ),

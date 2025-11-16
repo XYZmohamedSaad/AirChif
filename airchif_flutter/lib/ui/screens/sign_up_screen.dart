@@ -33,13 +33,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
   static const BorderSide _fieldBorder =
   BorderSide(color: Colors.black, width: 1.2);
 
-  InputDecoration _input(String label, {bool isPassword = false, VoidCallback? onToggle}) {
+  InputDecoration _input(
+      String label, {
+        bool isPassword = false,
+        VoidCallback? onToggle,
+      }) {
     return InputDecoration(
       labelText: label,
       labelStyle: const TextStyle(color: Colors.black, fontSize: 14),
       filled: true,
       fillColor: _fieldFill,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      contentPadding:
+      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: _fieldBorder,
@@ -61,6 +66,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
+
     setState(() => _loading = true);
 
     final ok = await _auth.signUp(
@@ -69,16 +75,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
       password: _passwordController.text,
     );
 
+    if (!mounted) return;
+
     if (ok) {
+      // Nach erfolgreichem Signup automatisch einloggen
       final loginOk = await _auth.login(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
       if (loginOk && mounted) {
         context.go(HomeScreen.routePath);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Signup ok, aber Login fehlgeschlagen')),
+        );
       }
     } else {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Signup fehlgeschlagen')),
       );
@@ -104,7 +116,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 420),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              padding:
+              const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: Form(
                 key: _formKey,
                 child: Column(
@@ -130,6 +143,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: 22),
 
+                    // Email
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
@@ -144,6 +158,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: 12),
 
+                    // Username
                     TextFormField(
                       controller: _usernameController,
                       decoration: _input('Username'),
@@ -156,30 +171,35 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                     const SizedBox(height: 12),
 
+                    // Password
                     TextFormField(
                       controller: _passwordController,
                       obscureText: _obscurePw,
                       decoration: _input(
                         'Password',
                         isPassword: true,
-                        onToggle: () => setState(() => _obscurePw = !_obscurePw),
+                        onToggle: () =>
+                            setState(() => _obscurePw = !_obscurePw),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Password required';
+                        if (v == null || v.isEmpty) {
+                          return 'Password required';
+                        }
                         if (v.length < 6) return 'Min. 6 characters';
                         return null;
                       },
                     ),
                     const SizedBox(height: 12),
 
+                    // Confirm password
                     TextFormField(
                       controller: _confirmController,
                       obscureText: _obscureConfirm,
                       decoration: _input(
                         'Confirm Password',
                         isPassword: true,
-                        onToggle: () =>
-                            setState(() => _obscureConfirm = !_obscureConfirm),
+                        onToggle: () => setState(
+                                () => _obscureConfirm = !_obscureConfirm),
                       ),
                       onFieldSubmitted: (_) => _submit(),
                       validator: (v) {
@@ -192,21 +212,20 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 28),
-
-                    if (_loading) const CircularProgressIndicator(),
 
                     const SizedBox(height: 28),
 
+                    // Sign-up Button
                     SizedBox(
                       width: 200,
                       height: 44,
                       child: FilledButton(
-                        onPressed: () => context.go(SignInScreen.routePath),
+                        onPressed: _loading ? null : _submit,
                         style: FilledButton.styleFrom(
                           backgroundColor: _goldButton,
                           shape: const StadiumBorder(),
-                          side: const BorderSide(color: Colors.black, width: 1.2),
+                          side: const BorderSide(
+                              color: Colors.black, width: 1.2),
                           elevation: 0,
                           foregroundColor: Colors.black,
                           textStyle: const TextStyle(
@@ -214,8 +233,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             fontWeight: FontWeight.w500,
                           ),
                         ),
-                        child: const Text('Login'),
+                        child: _loading
+                            ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                          ),
+                        )
+                            : const Text('Sign up'),
                       ),
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Link zur Login-Seite
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      children: [
+                        const Text('Already have an account? '),
+                        TextButton(
+                          onPressed: () =>
+                              context.go(SignInScreen.routePath),
+                          child: const Text('Login'),
+                        ),
+                      ],
                     ),
                   ],
                 ),

@@ -1,40 +1,68 @@
 import 'package:go_router/go_router.dart';
-
+import '../ui/screens/drone_settings.dart';
 import '../ui/screens/welcome_screen.dart';
 import '../ui/screens/sign_in_screen.dart';
 import '../ui/screens/sign_up_screen.dart';
 import '../ui/screens/home_screen.dart';
 import '../ui/screens/profile_screen.dart';
 import '../ui/screens/manual_steering.dart';
+import '../ui/screens/automatic_steering.dart';
+import '../ui/screens/journey_workshop.dart';
 
 final router = GoRouter(
-  // Erste Seite beim Start der App
   initialLocation: WelcomeScreen.routePath,
-
   routes: [
+
+    // Welcome
     GoRoute(
-      path: WelcomeScreen.routePath,       // '/'
+      path: WelcomeScreen.routePath,
       builder: (context, state) => const WelcomeScreen(),
     ),
+
+    // Login
     GoRoute(
-      path: SignInScreen.routePath,        // '/sign-in'
+      path: SignInScreen.routePath,
       builder: (context, state) => const SignInScreen(),
     ),
+
+    // Signup
     GoRoute(
-      path: SignUpScreen.routePath,        // '/sign-up'
+      path: SignUpScreen.routePath,
       builder: (context, state) => const SignUpScreen(),
     ),
+
+    // Home
     GoRoute(
-      path: HomeScreen.routePath,          // '/home'
+      path: HomeScreen.routePath,
       builder: (context, state) => const HomeScreen(),
     ),
+
+    // Profile
     GoRoute(
-      path: ProfileScreen.routePath,       // '/profile'
+      path: ProfileScreen.routePath,
       builder: (context, state) => const ProfileScreen(),
     ),
+
+    // Manual Steering
     GoRoute(
-      path: ManualSteering.routePath, // '/manual-steering'
+      path: ManualSteering.routePath,
       builder: (context, state) => const ManualSteering(),
+    ),
+
+    // Automatic Steering (Placeholder)
+    GoRoute(
+      path: AutomaticSteeringScreen.routePath,
+      builder: (context, state) => const AutomaticSteeringScreen(),
+    ),
+
+    // Journey Workshop (Placeholder)
+    GoRoute(
+      path: JourneyWorkshopScreen.routePath,
+      builder: (context, state) => const JourneyWorkshopScreen(),
+    ),
+    GoRoute(
+      path: DroneSettingsScreen.routePath,
+      builder: (context, state) => const DroneSettingsScreen(),
     ),
   ],
 );

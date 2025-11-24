@@ -5,34 +5,30 @@
 // - Scrollable layout to prevent overflow
 // - Drone connect / RC logic unchanged
 // - Telemetry row removed
-// - Top-left icons navigate pages
-// - Top-right icons: Emergency, Video On/Off, Land, Takeoff
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:airchif_flutter/ui/screens/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_vlc_player/flutter_vlc_player.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../routing/routes.dart';
-import 'automatic_steering.dart';
-import 'drone_settings.dart';
-import 'home_screen.dart';
-import 'manual_steering.dart';
-
+// -----------------------------
+// CONFIG
+// -----------------------------
 const String TELLO_IP = '192.168.10.1';
 const int TELLO_CMD_PORT = 8889;
 const int TELLO_STATE_PORT = 8890;
 const int VLC_UDP_PORT = 11111;
 
 const int RC_MAX = 100;
-const double JOYSTICK_DEADZONE = 0.08;
+const double JOYSTICK_DEADZONE = 0.05;
 
+// -----------------------------
+// MAIN WIDGET
+// -----------------------------
 class ManualSteering extends StatefulWidget {
   static const String routePath = '/manual-steering';
 
@@ -45,7 +41,6 @@ class ManualSteering extends StatefulWidget {
 class _ManualSteeringState extends State<ManualSteering> with TickerProviderStateMixin {
   bool connected = false;
   String statusText = 'Not connected to any drone';
-  bool videoOn = true;
 
   RawDatagramSocket? _cmdSocket;
   RawDatagramSocket? _stateSocket;
@@ -81,6 +76,7 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
     _stateSocket?.close();
     _videoController?.dispose();
     _fadeController.dispose();
+    stopRc();
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -106,12 +102,12 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
       });
 
       _sendCmd('command');
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 1000));
       _sendCmd('streamon');
-      await Future.delayed(const Duration(milliseconds: 500));
+      await Future.delayed(const Duration(milliseconds: 1000));
 
       _videoController = VlcPlayerController.network(
-        'udp://@:$VLC_UDP_PORT',
+        'udp://@0.0.0.0:$VLC_UDP_PORT',
         hwAcc: HwAcc.full,
         autoPlay: true,
         options: VlcPlayerOptions(
@@ -121,7 +117,7 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
       );
 
       _rcTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
-        _sendCmd('rc \$roll \$pitch \$throttle \$yaw');
+        _sendCmd('rc $roll $pitch $throttle $yaw');
       });
 
       setState(() {
@@ -187,13 +183,14 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      SizedBox(height: 68, child: _buildTopBar(context)),
+                      SizedBox(height: 68, child: _buildTopBar()),
                       Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                           child: _buildVideoAreaLandscape(),
                         ),
                       ),
+                      SizedBox(height: 120, child: _buildActionsArea()),
                     ],
                   ),
                 ),
@@ -248,43 +245,37 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
   // -----------------------------
   // WIDGETS
   // -----------------------------
-  Widget _buildTopBar(BuildContext context) {
+  Widget _buildTopBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          // Left-side navigation
           Row(
             children: [
-              _iconCircle(Icons.settings, 40, () => context.go(DroneSettingsScreen.routePath)),
+              _iconCircle(Icons.settings, 40),
               const SizedBox(width: 10),
-              _iconCircle(Icons.home, 40, () => context.go(HomeScreen.routePath)),
+              _iconCircle(Icons.home, 40),
               const SizedBox(width: 10),
-              _iconCircle(Icons.pie_chart, 40, () => context.go(AutomaticSteeringScreen.routePath)),
+              _iconCircle(Icons.pie_chart, 40),
               const SizedBox(width: 10),
-              _iconCircle(Icons.person, 40, () => context.go(ProfileScreen.routePath)),
+              _iconCircle(Icons.person, 40),
             ],
           ),
           const Spacer(),
-          // Right-side Tello controls
           Row(
             children: [
-              _smallIconButton(Icons.warning, Colors.red, emergency),
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: Colors.red[100], shape: BoxShape.circle, border: Border.all(color: Colors.red)),
+                child: const Center(child: Icon(Icons.arrow_downward, color: Colors.red)),
+              ),
               const SizedBox(width: 8),
-              _smallIconButton(Icons.videocam, Colors.yellow[700]!, () {
-                setState(() => videoOn = !videoOn);
-                if (videoOn) {
-                  _sendCmd('streamon');
-                  _videoController?.play();
-                } else {
-                  _sendCmd('streamoff');
-                  _videoController?.pause();
-                }
-              }),
+              _iconCircle(Icons.videocam, 42, bgColor: Colors.yellow[100]),
               const SizedBox(width: 8),
-              _smallIconButton(Icons.flight_land, Colors.green, land),
+              _iconCircle(Icons.download, 42, bgColor: Colors.yellow[100]),
               const SizedBox(width: 8),
-              _smallIconButton(Icons.flight_takeoff, Colors.green, takeoff),
+              _iconCircle(Icons.upload, 42, bgColor: Colors.yellow[100]),
             ],
           ),
         ],
@@ -292,15 +283,12 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
     );
   }
 
-  Widget _iconCircle(IconData icon, double size, VoidCallback onTap, {Color? bgColor}) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(color: bgColor ?? Colors.black12, shape: BoxShape.circle),
-        child: Icon(icon, size: size * 0.46),
-      ),
+  Widget _iconCircle(IconData icon, double size, {Color? bgColor}) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: bgColor ?? Colors.black12, shape: BoxShape.circle),
+      child: Icon(icon, size: size * 0.46),
     );
   }
 
@@ -325,19 +313,59 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
             else
               Container(color: Colors.black),
             Positioned(
+              top: 12,
+              left: 12,
+              child: Row(
+                children: [
+                  _smallIconButton(Icons.settings, Colors.black.withOpacity(0.06), null),
+                  const SizedBox(width: 8),
+                  _smallIconButton(Icons.help_outline, Colors.black.withOpacity(0.06), null),
+                ],
+              ),
+            ),
+            Positioned(
               bottom: 12,
               left: 16,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Roll: \$roll', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text('Roll: $roll', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  Text('Pitch: \$pitch', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text('Pitch: $pitch', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildActionsArea() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          _bigActionButton('CONNECT', Icons.wifi, connect, connected ? Colors.grey : Colors.blue),
+          _bigActionButton('TAKEOFF', Icons.flight_takeoff, connected ? takeoff : null, Colors.green),
+          _bigActionButton('LAND', Icons.flight_land, connected ? land : null, Colors.red),
+          _bigActionButton('EMERGENCY', Icons.warning, connected ? emergency : null, Colors.orange),
+        ],
+      ),
+    );
+  }
+
+  Widget _bigActionButton(String label, IconData icon, VoidCallback? onTap, Color color) {
+    return ElevatedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 18),
+      label: Text(label),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: onTap == null ? Colors.grey[300] : color,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
   }

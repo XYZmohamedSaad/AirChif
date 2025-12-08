@@ -110,19 +110,6 @@ class _JourneyWorkshopScreenState extends State<JourneyWorkshopScreen> {
     }
   }
 
-  void _startJourney() {
-    if (_currentPoints.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Keine Punkte im Journey vorhanden.')),
-      );
-      return;
-    }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Journey gestartet (Platzhalter).')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     const Color boxYellow = Color(0xFFF4DA7A);
@@ -223,7 +210,7 @@ class _JourneyWorkshopScreenState extends State<JourneyWorkshopScreen> {
 
                   // ===== Journey Auswahl =====
                   const Text(
-                    'Select Journey',
+                    'Create Journey',
                     style: TextStyle(fontSize: 13, color: Colors.black87),
                   ),
                   const SizedBox(height: 6),
@@ -322,28 +309,6 @@ class _JourneyWorkshopScreenState extends State<JourneyWorkshopScreen> {
                   ),
 
                   const SizedBox(height: 12),
-
-                  // ===== Journey starten =====
-                  SizedBox(
-                    height: 50,
-                    child: FilledButton.icon(
-                      onPressed: _startJourney,
-                      style: FilledButton.styleFrom(
-                        backgroundColor: darkGold,
-                        foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(25),
-                        ),
-                        side: const BorderSide(color: Colors.black, width: 1.2),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      icon: const Icon(Icons.rocket_launch_outlined),
-                      label: const Text('Start Journey'),
-                    ),
-                  ),
                 ],
               ),
             ),

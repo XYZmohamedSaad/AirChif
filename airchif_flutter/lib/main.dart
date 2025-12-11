@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:media_kit/media_kit.dart';
 import 'routing/routes.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
 void main(){
   setUrlStrategy(PathUrlStrategy());
+  MediaKit.ensureInitialized();
+
   runApp(const AirChifApp());
 }
 

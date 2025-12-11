@@ -5,7 +5,7 @@ import 'manual_steering.dart';
 import 'profile_screen.dart';
 import 'automatic_steering.dart';
 import 'journey_workshop.dart';
-import 'drone_settings.dart'; // Platzhalter-Seite, die du erstellen wirst
+import 'drone_settings.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -36,7 +36,10 @@ class HomeScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: _boxYellow,
                       borderRadius: BorderRadius.circular(22),
-                      border: Border.all(color: Colors.black.withOpacity(.55), width: 1.4),
+                      border: Border.all(
+                        color: Colors.black.withOpacity(.55),
+                        width: 1.4,
+                      ),
                       boxShadow: [
                         BoxShadow(
                           blurRadius: 10,
@@ -45,17 +48,54 @@ class HomeScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: Center(
-                      child: AspectRatio(
-                        aspectRatio: 4 / 3,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(14),
-                          child: Image.asset(
-                            'assets/drone_image.png',
-                            fit: BoxFit.contain,
+                    child: Row(
+                      children: [
+                        // Drone-Bild links
+                        Expanded(
+                          child: AspectRatio(
+                            aspectRatio: 4 / 3,
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(14),
+                              child: Image.asset(
+                                'assets/drone_image.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                        const SizedBox(width: 16),
+
+                        // Nur der Details-Button rechts (ohne "Connected")
+                        Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            OutlinedButton(
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.black,
+                                side: const BorderSide(
+                                  color: Colors.black,
+                                  width: 1.1,
+                                ),
+                                backgroundColor: _lightBeige,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 18,
+                                  vertical: 8,
+                                ),
+                                textStyle: const TextStyle(
+                                  fontSize: 14,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                              onPressed: () =>
+                                  context.go(DroneSettingsScreen.routePath),
+                              child: const Text('Details'),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
 
@@ -67,7 +107,8 @@ class HomeScreen extends StatelessWidget {
                       Expanded(
                         child: _HomeMenuButton(
                           label: 'automatic steering',
-                          onTap: () => context.go(AutomaticSteeringScreen.routePath),
+                          onTap: () =>
+                              context.go(AutomaticSteeringScreen.routePath),
                         ),
                       ),
                       const SizedBox(width: 14),
@@ -85,7 +126,8 @@ class HomeScreen extends StatelessWidget {
                   // ===== journey workshop =====
                   _HomeMenuButton(
                     label: 'journey workshop',
-                    onTap: () => context.go(JourneyWorkshopScreen.routePath),
+                    onTap: () =>
+                        context.go(JourneyWorkshopScreen.routePath),
                   ),
 
                   const Spacer(),
@@ -120,7 +162,7 @@ class HomeScreen extends StatelessWidget {
               onPressed: () => context.go(HomeScreen.routePath),
             ),
 
-            // DROHNEN SETTINGS (PLATZHALTER!)
+            // DROHNEN SETTINGS (rechts unten – später Settings/Stats)
             IconButton(
               icon: const Icon(Icons.settings, size: 30),
               onPressed: () => context.go(DroneSettingsScreen.routePath),

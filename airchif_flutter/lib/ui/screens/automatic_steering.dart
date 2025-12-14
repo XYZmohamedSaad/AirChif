@@ -8,7 +8,7 @@ import 'package:latlong2/latlong.dart';
 import 'home_screen.dart';
 import 'profile_screen.dart';
 import 'journey_workshop.dart';
-import 'drone_settings.dart';
+import 'drone-settings.dart';
 
 class AutomaticSteeringScreen extends StatefulWidget {
   static const routePath = '/automatic';

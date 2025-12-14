@@ -1,5 +1,5 @@
 import 'package:go_router/go_router.dart';
-import '../ui/screens/drone_settings.dart';
+
 import '../ui/screens/welcome_screen.dart';
 import '../ui/screens/sign_in_screen.dart';
 import '../ui/screens/sign_up_screen.dart';
@@ -8,11 +8,13 @@ import '../ui/screens/profile_screen.dart';
 import '../ui/screens/manual_steering.dart';
 import '../ui/screens/automatic_steering.dart';
 import '../ui/screens/journey_workshop.dart';
+import '../ui/screens/general_settings.dart';
+import '../ui/screens/drone-settings.dart';
+
 
 final router = GoRouter(
   initialLocation: WelcomeScreen.routePath,
   routes: [
-
     // Welcome
     GoRoute(
       path: WelcomeScreen.routePath,
@@ -49,17 +51,25 @@ final router = GoRouter(
       builder: (context, state) => const ManualSteering(),
     ),
 
-    // Automatic Steering (Placeholder)
+    // Automatic Steering
     GoRoute(
       path: AutomaticSteeringScreen.routePath,
       builder: (context, state) => const AutomaticSteeringScreen(),
     ),
 
-    // Journey Workshop (Placeholder)
+    // Journey Workshop
     GoRoute(
       path: JourneyWorkshopScreen.routePath,
       builder: (context, state) => const JourneyWorkshopScreen(),
     ),
+
+    // General Settings (Seite aus dem linken Bild)
+    GoRoute(
+      path: GeneralSettingsScreen.routePath,
+      builder: (context, state) => const GeneralSettingsScreen(),
+    ),
+
+    // Drone-Detail-Settings (Status-Seite, die vom Details-Button aufgerufen wird)
     GoRoute(
       path: DroneSettingsScreen.routePath,
       builder: (context, state) => const DroneSettingsScreen(),

@@ -5,7 +5,7 @@ import 'package:latlong2/latlong.dart';
 
 import 'home_screen.dart';
 import 'profile_screen.dart';
-import 'drone_settings.dart';
+import 'drone-settings.dart';
 
 /// ====== Journey-Model + einfacher Speicher (bleibt im ganzen App-Lauf bestehen) ======
 

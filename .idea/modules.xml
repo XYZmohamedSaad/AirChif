@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/AirCHIF.iml" filepath="$PROJECT_DIR$/.idea/AirCHIF.iml" />
       <module fileurl="file://$PROJECT_DIR$/airchif_flutter/airchif_flutter.iml" filepath="$PROJECT_DIR$/airchif_flutter/airchif_flutter.iml" />
+      <module fileurl="file://$PROJECT_DIR$/airchif_flutter/android/airchif_flutter_android.iml" filepath="$PROJECT_DIR$/airchif_flutter/android/airchif_flutter_android.iml" />
     </modules>
   </component>
 </project>

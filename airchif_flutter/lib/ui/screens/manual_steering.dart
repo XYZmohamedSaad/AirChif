@@ -13,7 +13,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_vlc_player/flutter_vlc_player.dart';
+import 'package:media_kit/media_kit.dart';
+import 'package:media_kit_video/media_kit_video.dart';
 
 // -----------------------------
 // CONFIG
@@ -21,7 +22,7 @@ import 'package:flutter_vlc_player/flutter_vlc_player.dart';
 const String TELLO_IP = '192.168.10.1';
 const int TELLO_CMD_PORT = 8889;
 const int TELLO_STATE_PORT = 8890;
-const int VLC_UDP_PORT = 11111;
+const int VLC_UDP_PORT = 11111; // aktuell ungenutzt, aber gelassen
 
 const int RC_MAX = 100;
 const double JOYSTICK_DEADZONE = 0.05;
@@ -45,7 +46,10 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
   RawDatagramSocket? _cmdSocket;
   RawDatagramSocket? _stateSocket;
 
-  VlcPlayerController? _videoController;
+  // NEU: media_kit
+  Player? _player;
+  VideoController? _videoController;
+  String? _videoError;
 
   Timer? _rcTimer;
 
@@ -62,7 +66,29 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
   @override
   void initState() {
     super.initState();
+
     _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+
+    _player = Player();
+    _videoController = VideoController(_player!);
+
+    // <<< EINZIGE ÄNDERUNG: mpv-Option setzen, damit unsichere Playlists erlaubt werden
+    try {
+      final platform = (_player as dynamic).platform;
+      // mpv-Property ohne "--", Wert "yes"
+      platform.setProperty('load-unsafe-playlists', 'yes');
+    } catch (e) {
+      debugPrint('Konnte mpv-Option nicht setzen: $e');
+    }
+    // >>> ENDE ÄNDERUNG
+
+    _player!.stream.error.listen((err) {
+      setState(() {
+        _videoError = err.toString();
+      });
+      debugPrint('*** MEDIA_KIT ERROR: $err');
+    });
+
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
@@ -74,7 +100,9 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
     _rcTimer?.cancel();
     _cmdSocket?.close();
     _stateSocket?.close();
-    _videoController?.dispose();
+
+    _player?.dispose();
+
     _fadeController.dispose();
     stopRc();
     SystemChrome.setPreferredOrientations([
@@ -90,7 +118,7 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
   Future<void> connect() async {
     try {
       setState(() => statusText = 'Connecting...');
-      _cmdSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, TELLO_CMD_PORT);
+      _cmdSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
       _stateSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, TELLO_STATE_PORT);
       _stateSocket!.listen((event) {
         if (event == RawSocketEvent.read) {
@@ -103,16 +131,17 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
 
       _sendCmd('command');
       await Future.delayed(const Duration(milliseconds: 1000));
-      _sendCmd('streamon');
-      await Future.delayed(const Duration(milliseconds: 1000));
 
-      _videoController = VlcPlayerController.network(
-        'udp://@0.0.0.0:$VLC_UDP_PORT',
-        hwAcc: HwAcc.full,
-        autoPlay: true,
-        options: VlcPlayerOptions(
-          advanced: VlcAdvancedOptions(['--network-caching=150']),
-          rtp: VlcRtpOptions(['--rtp-client-port=$VLC_UDP_PORT']),
+      _sendCmd('streamon');
+      await Future.delayed(const Duration(milliseconds: 500));
+      _sendCmd('streamon');
+      await Future.delayed(const Duration(milliseconds: 500));
+
+      // VIDEO: aktuell HTTP-Test-Stream statt Tello-UDP
+      await _player?.open(
+        Media(
+          // mpv / ffmpeg-Style UDP-URL
+          'udp://0.0.0.0:11111',
         ),
       );
 
@@ -127,17 +156,21 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
       _fadeController.forward();
     } catch (e) {
       setState(() {
-        statusText = 'Connection error: \$e';
+        statusText = 'Connection error: $e';
         connected = false;
       });
+      debugPrint('Connection error: $e');
     }
   }
 
   void _sendCmd(String cmd) {
     try {
+      debugPrint('>>> TELLO CMD: $cmd');
       final bytes = utf8.encode(cmd);
       _cmdSocket?.send(bytes, InternetAddress(TELLO_IP), TELLO_CMD_PORT);
-    } catch (e) {}
+    } catch (e) {
+      debugPrint('CMD SEND ERROR: $e');
+    }
   }
 
   void takeoff() => _sendCmd('takeoff');
@@ -305,13 +338,31 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
           fit: StackFit.expand,
           children: [
             if (_videoController != null)
-              VlcPlayer(
+              Video(
                 controller: _videoController!,
-                aspectRatio: 16 / 9,
-                placeholder: Container(color: Colors.black),
+                fit: BoxFit.cover,
               )
             else
-              Container(color: Colors.black),
+              Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Warte auf Videostream...',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    if (_videoError != null) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        // Text gelassen wie vorher (VLC-Fehler), um UI nicht zu ändern
+                        'VLC-Fehler: $_videoError',
+                        style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
             Positioned(
               top: 12,
               left: 12,
@@ -347,7 +398,7 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
-          _bigActionButton('CONNECT', Icons.wifi, connect, connected ? Colors.grey : Colors.blue),
+          _bigActionButton('CONNECT', Icons.wifi, connected ? null : connect, connected ? Colors.grey : Colors.blue),
           _bigActionButton('TAKEOFF', Icons.flight_takeoff, connected ? takeoff : null, Colors.green),
           _bigActionButton('LAND', Icons.flight_land, connected ? land : null, Colors.red),
           _bigActionButton('EMERGENCY', Icons.warning, connected ? emergency : null, Colors.orange),
@@ -393,7 +444,10 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
         children: [
           Icon(connected ? Icons.check_circle : Icons.cancel, color: connected ? Colors.green : Colors.red, size: 16),
           const SizedBox(width: 8),
-          Text(connected ? 'CONNECTED' : 'NOT CONNECTED', style: TextStyle(color: connected ? Colors.green[800] : Colors.red[800], fontWeight: FontWeight.bold)),
+          Text(
+            connected ? 'CONNECTED' : 'NOT CONNECTED',
+            style: TextStyle(color: connected ? Colors.green[800] : Colors.red[800], fontWeight: FontWeight.bold),
+          ),
         ],
       ),
     );
@@ -411,7 +465,15 @@ class JoystickWidget extends StatefulWidget {
   final void Function(Offset normalized)? onChanged;
   final VoidCallback? onEnd;
 
-  const JoystickWidget({super.key, this.size = 140, this.backgroundOpacity = 0.2, this.innerOpacity = 0.4, this.child, this.onChanged, this.onEnd});
+  const JoystickWidget({
+    super.key,
+    this.size = 140,
+    this.backgroundOpacity = 0.2,
+    this.innerOpacity = 0.4,
+    this.child,
+    this.onChanged,
+    this.onEnd,
+  });
 
   @override
   State<JoystickWidget> createState() => _JoystickWidgetState();
@@ -428,7 +490,10 @@ class _JoystickWidgetState extends State<JoystickWidget> {
     final radius = widget.size / 2;
     final clamped = Offset(delta.dx.clamp(-radius, radius), delta.dy.clamp(-radius, radius));
     setState(() => _localPos = clamped);
-    final normalized = Offset((clamped.dx / radius).clamp(-1.0, 1.0), (clamped.dy / radius).clamp(-1.0, 1.0));
+    final normalized = Offset(
+      (clamped.dx / radius).clamp(-1.0, 1.0),
+      (clamped.dy / radius).clamp(-1.0, 1.0),
+    );
     widget.onChanged?.call(normalized);
   }
 
@@ -469,13 +534,22 @@ class _JoystickWidgetState extends State<JoystickWidget> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: Colors.white.withOpacity(widget.innerOpacity),
-                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.12), blurRadius: 8, offset: const Offset(0, 4))],
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.12),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
                 ),
                 child: Center(
                   child: Container(
                     width: knobSize * 0.38,
                     height: knobSize * 0.38,
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.75), shape: BoxShape.circle),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.75),
+                      shape: BoxShape.circle,
+                    ),
                   ),
                 ),
               ),

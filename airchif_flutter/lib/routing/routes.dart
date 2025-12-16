@@ -10,6 +10,7 @@ import '../ui/screens/automatic_steering.dart';
 import '../ui/screens/journey_workshop.dart';
 import '../ui/screens/general_settings.dart';
 import '../ui/screens/drone-settings.dart';
+import '../ui/screens/edit_profile_screen.dart';
 
 
 final router = GoRouter(
@@ -73,6 +74,11 @@ final router = GoRouter(
     GoRoute(
       path: DroneSettingsScreen.routePath,
       builder: (context, state) => const DroneSettingsScreen(),
+    ),
+
+    GoRoute(
+      path: EditProfileScreen.routePath,
+      builder: (context, state) => const EditProfileScreen(),
     ),
   ],
 );

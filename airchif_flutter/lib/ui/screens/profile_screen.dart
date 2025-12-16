@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../services/auth_service.dart';
 import 'home_screen.dart';
 import 'sign_in_screen.dart';
+import 'edit_profile_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -16,12 +18,42 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   bool _notificationsEnabled = true;
 
-  static const Color _accentYellow = Color(0xFFF2C23A);
   static const Color _cardYellow = Color(0xFFF4DA7A);
   static const Color _bottomNavYellow = Color(0xFFF4DA7A);
   static const Color _goldButton = Color(0xFFC58B07);
 
   final _auth = AuthService();
+  final _storage = const FlutterSecureStorage();
+
+  // Profile-Daten (werden aus Storage geladen)
+  String _name = 'Hassan Demirbay';
+  String _email = 'hassan.hassan@gmail.com';
+  bool _loadingProfile = true;
+
+  static const String _kName = 'profile_name';
+  static const String _kEmail = 'profile_email';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    final storedName = await _storage.read(key: _kName);
+    final storedEmail = await _storage.read(key: _kEmail);
+
+    if (!mounted) return;
+    setState(() {
+      if (storedName != null && storedName.trim().isNotEmpty) {
+        _name = storedName.trim();
+      }
+      if (storedEmail != null && storedEmail.trim().isNotEmpty) {
+        _email = storedEmail.trim();
+      }
+      _loadingProfile = false;
+    });
+  }
 
   Future<void> _logout() async {
     await _auth.logout();
@@ -29,17 +61,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
     context.go(SignInScreen.routePath);
   }
 
+  Future<void> _openEditProfile() async {
+    // Wir navigieren und laden nach Rückkehr erneut (damit UI sicher aktualisiert)
+    context.push(EditProfileScreen.routePath).then((_) => _loadProfile());
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
+
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 90),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Titel
               const Center(
                 child: Text(
                   'Profile',
@@ -52,10 +89,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 24),
 
-              // Profilkarte mit Platzhalter-Bild
+              // Profilkarte (Name/Email dynamisch)
               Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: _cardYellow,
                   borderRadius: BorderRadius.circular(18),
@@ -76,21 +112,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Icon(Icons.person, size: 30, color: Colors.black),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
-                      child: Column(
+                    Expanded(
+                      child: _loadingProfile
+                          ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8),
+                        child: LinearProgressIndicator(minHeight: 4),
+                      )
+                          : Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Hassan Demirbay', // Platzhalter
-                            style: TextStyle(
+                            _name,
+                            style: const TextStyle(
                               fontWeight: FontWeight.w700,
                               fontSize: 16,
                             ),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
-                            'hassan.hassan@gmail.com', // Platzhalter
-                            style: TextStyle(
+                            _email,
+                            style: const TextStyle(
                               fontSize: 13,
                               color: Colors.black87,
                             ),
@@ -104,7 +145,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 20),
               const Divider(thickness: 1),
-
               const SizedBox(height: 16),
 
               // ===== General Card =====
@@ -115,9 +155,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: Icons.person_outline,
                     title: 'Edit Profile',
                     subtitle: 'Change username, email etc.',
-                    onTap: () {
-                      // TODO: Edit-Profile-Seite
-                    },
+                    onTap: _openEditProfile,
                   ),
                   const SizedBox(height: 10),
                   _SettingsRow(
@@ -125,7 +163,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: 'Change Password',
                     subtitle: 'Update and strengthen account security',
                     onTap: () {
-                      // TODO: Change-Password-Seite
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Change Password – coming soon')),
+                      );
                     },
                   ),
                   const SizedBox(height: 10),
@@ -134,7 +174,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: 'Terms of Use',
                     subtitle: 'terms and so on',
                     onTap: () {
-                      // TODO: Terms-of-use-Seite
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Terms of Use – coming soon')),
+                      );
                     },
                   ),
                 ],
@@ -148,10 +190,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               _SectionCard(
                 title: 'App Preferences',
                 children: [
-                  // Notifications mit Switch
+                  // Notifications
                   Container(
-                    padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     child: Row(
                       children: [
                         const Icon(Icons.notifications_none, size: 26),
@@ -182,8 +223,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           value: _notificationsEnabled,
                           activeColor: Colors.white,
                           activeTrackColor: _goldButton,
-                          onChanged: (v) =>
-                              setState(() => _notificationsEnabled = v),
+                          onChanged: (v) => setState(() => _notificationsEnabled = v),
                         ),
                       ],
                     ),
@@ -196,13 +236,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     title: 'General Settings',
                     subtitle: 'Settings for the app, drone etc.',
                     onTap: () {
-                      // TODO: Settings-Seite
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('General Settings – coming soon')),
+                      );
                     },
                   ),
 
                   const SizedBox(height: 10),
 
-                  // Logout (rot)
                   _SettingsRow(
                     icon: Icons.logout,
                     title: 'Logout',
@@ -218,7 +259,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
 
-      // ===== Bottom Navigation Bar =====
+      // ===== Bottom Navigation =====
       bottomNavigationBar: Container(
         height: 70,
         decoration: BoxDecoration(
@@ -239,9 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Expanded(
               child: IconButton(
-                onPressed: () {
-                  // schon auf Profile – nichts tun
-                },
+                onPressed: () {},
                 icon: const Icon(Icons.person, size: 28),
               ),
             ),
@@ -254,7 +293,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Expanded(
               child: IconButton(
                 onPressed: () {
-                  // TODO: Statistik / Dashboard-Seite
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Dashboard – coming soon')),
+                  );
                 },
                 icon: const Icon(Icons.pie_chart_outline, size: 28),
               ),
@@ -266,7 +307,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-/// gelbe Karten („General“, „App Preferences“)
 class _SectionCard extends StatelessWidget {
   const _SectionCard({
     required this.title,
@@ -306,7 +346,6 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-/// einzelne Zeile mit Icon, Titel, Untertitel und Pfeil
 class _SettingsRow extends StatelessWidget {
   const _SettingsRow({
     required this.icon,

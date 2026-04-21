@@ -5,7 +5,7 @@ import 'manual_steering.dart';
 import 'profile_screen.dart';
 import 'automatic_steering.dart';
 import 'journey_workshop.dart';
-import 'drone_settings.dart';
+import 'general_settings.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -89,8 +89,9 @@ class HomeScreen extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                               ),
+                              // -> General Settings Seite (Grid mit Camera Settings etc.)
                               onPressed: () =>
-                                  context.go(DroneSettingsScreen.routePath),
+                                  context.go(GeneralSettingsScreen.routePath),
                               child: const Text('Details'),
                             ),
                           ],
@@ -162,10 +163,11 @@ class HomeScreen extends StatelessWidget {
               onPressed: () => context.go(HomeScreen.routePath),
             ),
 
-            // DROHNEN SETTINGS (rechts unten – später Settings/Stats)
+            // GENERAL SETTINGS (rechts unten)
             IconButton(
               icon: const Icon(Icons.settings, size: 30),
-              onPressed: () => context.go(DroneSettingsScreen.routePath),
+              onPressed: () =>
+                  context.go(GeneralSettingsScreen.routePath),
             ),
           ],
         ),

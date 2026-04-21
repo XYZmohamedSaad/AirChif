@@ -24,6 +24,7 @@ const int TELLO_CMD_PORT = 8889;
 const int TELLO_STATE_PORT = 8890;
 const int VLC_UDP_PORT = 11111; // aktuell ungenutzt, aber gelassen
 
+
 const int RC_MAX = 100;
 const double JOYSTICK_DEADZONE = 0.05;
 
@@ -40,6 +41,37 @@ class ManualSteering extends StatefulWidget {
 }
 
 class _ManualSteeringState extends State<ManualSteering> with TickerProviderStateMixin {
+  static const MethodChannel _telloChannel = MethodChannel('tello/network');
+
+  Future<void> _bindWifi() async {
+    try {
+      debugPrint('TELLO/NET: bindWifi() calling Android...');
+      await _telloChannel.invokeMethod('bindWifi');
+      debugPrint('TELLO/NET: bindWifi() done');
+    } catch (e) {
+      debugPrint('TELLO/NET: bindWifi() FAILED: $e');
+    }
+  }
+
+  Future<void> _logNetworks() async {
+    try {
+      debugPrint('TELLO/NET: logNetworks()');
+      await _telloChannel.invokeMethod('logNetworks');
+    } catch (e) {
+      debugPrint('TELLO/NET: logNetworks FAILED: $e');
+    }
+  }
+
+  Future<void> _unbindWifi() async {
+    try {
+      debugPrint('TELLO/NET: unbindWifi()');
+      await _telloChannel.invokeMethod('unbindWifi');
+      debugPrint('TELLO/NET: unbindWifi done');
+    } catch (e) {
+      debugPrint('TELLO/NET: unbindWifi FAILED: $e');
+    }
+  }
+
   bool connected = false;
   String statusText = 'Not connected to any drone';
 
@@ -58,6 +90,17 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
   int throttle = 0;
   int yaw = 0;
 
+  // -----------------------------
+  // FAILSAFE (Battery)
+  // -----------------------------
+  int? _batteryPct;
+  bool _lowBattWarned = false;
+  bool _landingTriggered = false;
+  bool _isLanding = false;
+
+  static const int LOW_BATT = 5;
+  static const int CRIT_BATT = 2;
+
   Offset _leftJoy = Offset.zero;
   Offset _rightJoy = Offset.zero;
 
@@ -67,26 +110,37 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
   void initState() {
     super.initState();
 
-    _fadeController = AnimationController(vsync: this, duration: const Duration(milliseconds: 300));
+    _fadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
 
-    _player = Player();
+    _player = Player(
+      configuration: PlayerConfiguration(
+        logLevel: MPVLogLevel.debug,
+        ready: () {
+          try {
+            final platform = (_player as dynamic).platform;
+            platform.setProperty('load-unsafe-playlists', 'yes');
+            debugPrint('TELLO/MPV: set load-unsafe-playlists=yes (ready)');
+          } catch (e) {
+            debugPrint('TELLO/MPV: setProperty failed in ready(): $e');
+          }
+        },
+      ),
+    );
+
     _videoController = VideoController(_player!);
 
-    // <<< EINZIGE ÄNDERUNG: mpv-Option setzen, damit unsichere Playlists erlaubt werden
-    try {
-      final platform = (_player as dynamic).platform;
-      // mpv-Property ohne "--", Wert "yes"
-      platform.setProperty('load-unsafe-playlists', 'yes');
-    } catch (e) {
-      debugPrint('Konnte mpv-Option nicht setzen: $e');
-    }
-    // >>> ENDE ÄNDERUNG
+    // mpv / media_kit logs auf Flutter-Konsole
+    _player?.stream.log.listen((log) {
+      debugPrint('TELLO/MPV_LOG: [${log.level}] ${log.prefix}: ${log.text}');
+    });
 
-    _player!.stream.error.listen((err) {
-      setState(() {
-        _videoError = err.toString();
-      });
-      debugPrint('*** MEDIA_KIT ERROR: $err');
+    // errors
+    _player?.stream.error.listen((err) {
+      debugPrint('TELLO/MEDIA_KIT ERROR: $err');
+      setState(() => _videoError = err);
     });
 
     SystemChrome.setPreferredOrientations([
@@ -95,6 +149,8 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
     ]);
   }
 
+// muss top-level oder static sein, weil const PlayerConfiguratio
+
   @override
   void dispose() {
     _rcTimer?.cancel();
@@ -102,9 +158,11 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
     _stateSocket?.close();
 
     _player?.dispose();
-
     _fadeController.dispose();
     stopRc();
+
+    try { _telloChannel.invokeMethod('unbindWifi'); } catch (_) {}
+
     SystemChrome.setPreferredOrientations([
       DeviceOrientation.portraitUp,
       DeviceOrientation.portraitDown,
@@ -112,54 +170,132 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
     super.dispose();
   }
 
+  Future<void> _probeVideoPacketsOnce() async {
+    RawDatagramSocket? probe;
+    int count = 0;
+
+    try {
+      debugPrint('TELLO/PROBE: bind UDP 11111...');
+      probe = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 11111, reuseAddress: true, reusePort: true);
+
+      probe.listen((event) {
+        if (event == RawSocketEvent.read) {
+          final dg = probe!.receive();
+          if (dg != null) {
+            count++;
+            if (count % 20 == 0) {
+              debugPrint('TELLO/PROBE: packets=$count lastSize=${dg.data.length}');
+            }
+          }
+        }
+      });
+
+      await Future.delayed(const Duration(seconds: 2));
+      debugPrint('TELLO/PROBE: done packets=$count');
+    } catch (e) {
+      debugPrint('TELLO/PROBE: FAILED: $e');
+    } finally {
+      probe?.close();
+    }
+  }
+
+  Future<void> _applyMpvOptions() async {
+    try {
+      final p = (_player as dynamic).platform;
+
+      // wichtig bei Live-UDP
+      p.setProperty('demuxer-lavf-probesize', '32k');
+      p.setProperty('demuxer-lavf-analyzeduration', '0');
+
+      // optional: drop frames lieber als stallen
+      p.setProperty('framedrop', 'yes');
+
+      // falls unsafe-playlist warning wiederkommt
+      p.setProperty('load-unsafe-playlists', 'yes');
+
+      debugPrint('TELLO/MPV: lavf low-latency options set');
+    } catch (e) {
+      debugPrint('TELLO/MPV: setProperty failed: $e');
+    }
+  }
+
+
   // -----------------------------
   // CONNECT
   // -----------------------------
   Future<void> connect() async {
     try {
       setState(() => statusText = 'Connecting...');
+      debugPrint('TELLO: connect() start');
+
+      // 1) Bind process to WIFI (Android fix)
+      await _bindWifi();
+      await _logNetworks();
+
+      // 2) sockets
+      debugPrint('TELLO: binding cmd socket...');
       _cmdSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, 0);
+      debugPrint('TELLO: cmd socket bound on ${_cmdSocket!.port}');
+
+      debugPrint('TELLO: binding state socket 8890...');
       _stateSocket = await RawDatagramSocket.bind(InternetAddress.anyIPv4, TELLO_STATE_PORT);
+      debugPrint('TELLO: state socket bound on ${TELLO_STATE_PORT}');
+
       _stateSocket!.listen((event) {
         if (event == RawSocketEvent.read) {
           final datagram = _stateSocket!.receive();
           if (datagram != null) {
-            // parse state if needed
+            final msg = utf8.decode(datagram.data, allowMalformed: true).trim();
+            debugPrint('TELLO/STATE: $msg');
+            _handleStateMessage(msg);
           }
         }
       });
 
+      // 3) command mode
       _sendCmd('command');
-      await Future.delayed(const Duration(milliseconds: 1000));
+      debugPrint('TELLO: sent command');
+      await Future.delayed(const Duration(milliseconds: 800));
+      _sendCmd('streamoff');
+      await Future.delayed(const Duration(milliseconds: 300));
 
+      // 4) stream on
       _sendCmd('streamon');
-      await Future.delayed(const Duration(milliseconds: 500));
-      _sendCmd('streamon');
-      await Future.delayed(const Duration(milliseconds: 500));
+      debugPrint('TELLO: sent streamon');
+      await Future.delayed(const Duration(milliseconds: 800));
+      await _probeVideoPacketsOnce();
 
-      // VIDEO: aktuell HTTP-Test-Stream statt Tello-UDP
-      await _player?.open(
-        Media(
-          // mpv / ffmpeg-Style UDP-URL
-          'udp://0.0.0.0:11111',
-        ),
-      );
+      // 5) open video stream (ONLY ONCE)
+      debugPrint('TELLO/VIDEO: preparing mpv options...');
+      await _applyMpvOptions();
 
+      debugPrint('TELLO/VIDEO: opening udp://@:11111');
+      await _player?.open(Media('avformat://udp://0.0.0.0:11111'));
+
+      debugPrint('TELLO/VIDEO: open() finished');
+
+
+      // 6) RC loop
       _rcTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
-        _sendCmd('rc $roll $pitch $throttle $yaw');
+        if (!_isLanding) {
+          _sendCmd('rc $roll $pitch $throttle $yaw');
+        }
       });
+      debugPrint('TELLO: RC timer started');
 
       setState(() {
         connected = true;
         statusText = 'Drone connected';
       });
       _fadeController.forward();
-    } catch (e) {
+      debugPrint('TELLO: connect() success');
+    } catch (e, st) {
+      debugPrint('TELLO: connect() ERROR: $e');
+      debugPrint('TELLO: stack: $st');
       setState(() {
         statusText = 'Connection error: $e';
         connected = false;
       });
-      debugPrint('Connection error: $e');
     }
   }
 
@@ -173,7 +309,11 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
     }
   }
 
-  void takeoff() => _sendCmd('takeoff');
+  void takeoff() {
+    _isLanding = false;
+    _landingTriggered = false;
+    _sendCmd('takeoff');
+  }
   void land() => _sendCmd('land');
   void emergency() => _sendCmd('emergency');
   void stopRc() {
@@ -198,6 +338,47 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
       yaw = mapAxis(lx);
       throttle = mapAxis(ly);
     });
+  }
+
+  void _handleStateMessage(String msg) {
+    // Beispiel: "pitch:0;roll:0;...;bat:87;...;"
+    final parts = msg.split(';');
+    for (final p in parts) {
+      final kv = p.split(':');
+      if (kv.length != 2) continue;
+      if (kv[0] == 'bat') {
+        final b = int.tryParse(kv[1]);
+        if (b != null) _onBattery(b);
+      }
+    }
+  }
+
+  void _onBattery(int b) {
+    setState(() {
+      _batteryPct = b;
+    });
+
+    // kritisch -> landen (einmalig)
+    if (connected && !_landingTriggered && b <= CRIT_BATT) {
+      _landingTriggered = true;
+      _isLanding = true;
+
+      setState(() {
+        statusText = 'Critical battery ($b%). Auto-landing...';
+      });
+
+      stopRc();
+      land();
+      return;
+    }
+
+    // low warning (einmalig)
+    if (connected && !_lowBattWarned && b <= LOW_BATT) {
+      _lowBattWarned = true;
+      setState(() {
+        statusText = 'Low battery ($b%). Please land soon.';
+      });
+    }
   }
 
   @override
@@ -303,6 +484,8 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
                 decoration: BoxDecoration(color: Colors.red[100], shape: BoxShape.circle, border: Border.all(color: Colors.red)),
                 child: const Center(child: Icon(Icons.arrow_downward, color: Colors.red)),
               ),
+              const SizedBox(width: 8),
+              _batteryBadge(),
               const SizedBox(width: 8),
               _iconCircle(Icons.videocam, 42, bgColor: Colors.yellow[100]),
               const SizedBox(width: 8),
@@ -447,6 +630,53 @@ class _ManualSteeringState extends State<ManualSteering> with TickerProviderStat
           Text(
             connected ? 'CONNECTED' : 'NOT CONNECTED',
             style: TextStyle(color: connected ? Colors.green[800] : Colors.red[800], fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _batteryBadge() {
+    final b = _batteryPct; // int? (aus deinem State)
+    final text = b == null ? '--%' : '$b%';
+
+    final bool low = (b != null && b <= LOW_BATT);
+    final bool crit = (b != null && b <= CRIT_BATT);
+
+    Color bg;
+    Color border;
+    Color fg;
+
+    if (crit) {
+      bg = Colors.red[50]!;
+      border = Colors.red;
+      fg = Colors.red[800]!;
+    } else if (low) {
+      bg = Colors.orange[50]!;
+      border = Colors.orange;
+      fg = Colors.orange[800]!;
+    } else {
+      bg = Colors.green[50]!;
+      border = Colors.green;
+      fg = Colors.green[800]!;
+    }
+
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: border, width: 1.2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.battery_std, size: 18, color: fg),
+          const SizedBox(width: 6),
+          Text(
+            'BAT $text',
+            style: TextStyle(color: fg, fontWeight: FontWeight.bold, fontSize: 12),
           ),
         ],
       ),

@@ -102,3 +102,21 @@ class DetectionOut(DetectionCreate):
     created_at: datetime
     class Config:
         orm_mode = True
+
+
+class UserUpdate(BaseModel):
+    username: Optional[str] = Field(default=None, min_length=3, max_length=30)
+    email: Optional[EmailStr] = None
+
+class PasswordChange(BaseModel):
+    current_password: str = Field(min_length=8)
+    new_password: str = Field(min_length=8)
+
+    @validator("new_password")
+    def validate_password_strength(cls, v):
+        if len(v) < 8:
+            raise ValueError("Das Passwort muss mindestens 8 Zeichen lang sein.")
+        if v.isdigit() or v.isalpha():
+            raise ValueError("Das Passwort sollte Zahlen und Buchstaben enthalten.")
+        return v
+
